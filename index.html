@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نظام تحليل نواقص البيانات المتقدم - Enterprise Desktop Edition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/sql-wasm.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.4);
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --purple: #8b5cf6;
+            --bg: #090d16;
+            --card-bg: rgba(15, 23, 42, 0.85);
+            --card-bg-solid: #0f172a;
+            --text: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(129, 140, 248, 0.4);
+            --radius: 14px;
+            --radius-sm: 8px;
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --glow: 0 0 20px rgba(99, 102, 241, 0.25);
+            --shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Cairo', sans-serif;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) var(--bg);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--primary-dark); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary-light); }
+
+        body {
+            background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 50%, #090d16 100%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 14px;
+            line-height: 1.6;
+            direction: rtl;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .app-container {
+            max-width: 1780px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* شريط الأدوات العلوي الاحترافي */
+        .app-toolbar {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow);
+        }
+        .toolbar-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            background: rgba(30, 41, 59, 0.6);
+            color: #cbd5e1;
+            font-weight: 600;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            touch-action: manipulation;
+        }
+        .btn:hover {
+            border-color: var(--border-hover);
+            background: rgba(99, 102, 241, 0.15);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%);
+            border-color: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            border-color: var(--success);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--success-glow);
+        }
+        .btn-warning {
+            background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+            border-color: var(--warning);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        .system-status .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+            animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+
+        /* رأس الصفحة المدمج */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 24px;
+        }
+        .app-header h1 {
+            font-size: 1.5em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #fff 0%, var(--primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-badges { display: flex; gap: 8px; }
+        .badge {
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 700;
+            color: var(--primary-light);
+        }
+
+        /* شبكة الإحصائيات الحية */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+        }
+        .metric-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::after {
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            opacity: 0; transition: var(--transition);
+        }
+        .metric-card:hover { transform: translateY(-3px); border-color: var(--border-hover); box-shadow: var(--glow); }
+        .metric-card:hover::after { opacity: 1; }
+        .metric-card .val { font-size: 1.4em; font-weight: 900; letter-spacing: -0.5px; }
+        .metric-card .lbl { color: var(--text-secondary); font-size: 0.75em; font-weight: 600; margin-top: 2px; }
+
+        /* منطقة استيراد البيانات واللصق */
+        .import-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .import-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            position: relative;
+        }
+        .dropzone {
+            border: 2px dashed rgba(129, 140, 248, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: rgba(15, 23, 42, 0.5);
+        }
+        .dropzone:hover { border-color: var(--primary-light); background: rgba(99, 102, 241, 0.08); }
+        .file-input-hidden { display: none; }
+
+        .meta-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 12px;
+            font-size: 0.8em;
+            display: none;
+        }
+        .meta-tags.active { display: flex; }
+        .meta-badge {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            color: #cbd5e1;
+        }
+
+        .progress-wrapper {
+            width: 100%;
+            height: 18px;
+            background: #1e293b;
+            border-radius: 9px;
+            overflow: hidden;
+            margin-top: 10px;
+            display: none;
+            position: relative;
+            border: 1px solid var(--border);
+        }
+        .progress-wrapper.active { display: block; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); width: 0%; transition: width 0.1s linear; }
+        .progress-label { position: absolute; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; font-size:0.72em; font-weight:800; color:#fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+
+        .paste-textarea {
+            width: 100%;
+            height: 75px;
+            background: #1e293b;
+            color: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px;
+            font-family: 'Cairo', monospace;
+            resize: none;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+            transition: var(--transition);
+        }
+        .paste-textarea:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 10px rgba(99,102,241,0.2); }
+
+        /* هيكل عرض النتائج والتحليل */
+        .workspace-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 14px;
+        }
+
+        .sidebar-sectors {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            max-height: 680px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .sidebar-sectors h3 {
+            font-size: 0.9em;
+            font-weight: 800;
+            color: var(--primary-light);
+            margin-bottom: 8px;
+            text-align: center;
+            border-bottom: 1px solid rgba(129, 140, 248, 0.25);
+            padding-bottom: 8px;
+        }
+        .sector-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: #cbd5e1;
+            font-weight: 600;
+            font-size: 0.84em;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .sector-btn:hover { border-color: var(--border-hover); background: rgba(99, 102, 241, 0.1); color: #fff; }
+        .sector-btn.active { background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%); border-color: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+        .sector-btn .count { font-size: 0.8em; opacity: 0.8; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 12px; }
+
+        .main-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .panel-heading {
+            font-size: 1.2em;
+            font-weight: 800;
+            color: #fff;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* صندوق اختيار الأعمدة المطور */
+        .column-matrix {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 210px;
+            overflow-y: auto;
+            padding: 14px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+        .col-chip {
+            padding: 6px 16px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: rgba(30, 41, 59, 0.7);
+            color: #cbd5e1;
+            font-weight: 600;
+            font-size: 0.84em;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .col-chip:hover { border-color: var(--border-hover); color: #fff; background: rgba(99, 102, 241, 0.2); }
+        .col-chip.active { background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%); border-color: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(99,102,241,0.4); }
+        .col-chip.reference { border-color: var(--warning); background: rgba(245, 158, 11, 0.12); }
+        .col-chip.reference.active { background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); }
+
+        /* منطقة التحليل والرسوم البيانية */
+        .analytics-container {
+            display: grid;
+            grid-template-columns: 1.2fr 1.8fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .charts-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            height: 400px;
+        }
+        .chart-slot { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+
+        .table-box-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 0.85em;
+        }
+        .data-table th {
+            background: #1e293b;
+            color: var(--primary-light);
+            padding: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-weight: 700;
+            border-bottom: 2px solid var(--border);
+        }
+        .data-table td {
+            padding: 9px;
+            border-bottom: 1px solid var(--border);
+            color: #e2e8f0;
+        }
+        .data-table tr:hover { background: rgba(255, 255, 255, 0.025); }
+
+        .summary-cards-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .summary-card-mini {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px;
+            text-align: center;
+        }
+        .summary-card-mini .num { font-size: 1.3em; font-weight: 900; }
+        .summary-card-mini .txt { font-size: 0.75em; color: var(--text-secondary); font-weight: 600; }
+
+        .export-btn-sm {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 15px;
+            font-size: 0.75em;
+            font-weight: 700;
+            cursor: pointer;
+            background: #059669; color: #fff;
+            transition: var(--transition);
+        }
+        .export-btn-sm:hover { background: #047857; transform: scale(1.05); }
+
+        /* أنماط جديدة للتصدير */
+        .export-select {
+            padding: 4px 8px;
+            border-radius: 15px;
+            border: 1px solid var(--border);
+            background: #1e293b;
+            color: #cbd5e1;
+            font-size: 0.72em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'Cairo', sans-serif;
+        }
+        .export-select:hover {
+            border-color: var(--border-hover);
+            background: rgba(99, 102, 241, 0.15);
+        }
+        .export-select:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 8px rgba(99,102,241,0.3);
+        }
+
+        .legend-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            justify-content: center;
+            padding: 10px;
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: var(--radius-sm);
+            font-size: 0.78em;
+            font-weight: 600;
+        }
+        .legend-box span { display: flex; align-items: center; gap: 6px; }
+        .legend-box .dot { width: 9px; height: 9px; border-radius: 50%; }
+
+        /* النوافذ المنبثقة (Modals) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(9, 13, 22, 0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-card {
+            background: var(--card-bg-solid);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            width: 440px;
+            position: relative;
+            box-shadow: var(--shadow);
+        }
+        .modal-close {
+            position: absolute;
+            top: 14px; left: 14px;
+            background: rgba(255,255,255,0.08);
+            border: none; color: #fff;
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .modal-close:hover { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+        /* حقول الإدخال */
+        .input-field {
+            width: 100%;
+            padding: 10px 14px;
+            background: #1e293b;
+            color: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.9em;
+            font-family: 'Cairo', sans-serif;
+            transition: var(--transition);
+            margin-bottom: 12px;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 10px rgba(99,102,241,0.2);
+        }
+        .input-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.82em;
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+
+        /* شاشة تسجيل الدخول */
+        .login-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 50%, #090d16 100%);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+        }
+        .login-card {
+            background: var(--card-bg-solid);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            width: 420px;
+            max-width: 90vw;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--purple), var(--success));
+        }
+        .login-icon {
+            font-size: 3em;
+            color: var(--primary-light);
+            margin-bottom: 15px;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .login-title {
+            font-size: 1.4em;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        .login-subtitle {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            margin-bottom: 25px;
+        }
+
+        /* معلومات المطور */
+        .developer-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(99, 102, 241, 0.05);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: var(--radius-sm);
+            font-size: 0.78em;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+        .developer-info strong {
+            color: var(--primary-light);
+        }
+
+        /* التنبيهات */
+        .alert-banner {
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            margin-top: 10px;
+            display: none;
+            text-align: center;
+            font-size: 0.85em;
+            font-weight: 700;
+            animation: fadeIn 0.3s ease;
+        }
+        .alert-banner.success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid var(--success); }
+        .alert-banner.error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid var(--danger); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .app-footer {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.78em;
+            padding: 15px 0;
+            font-weight: 600;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            line-height: 1.8;
+        }
+        .app-footer .developer-credit {
+            color: var(--primary-light);
+            font-weight: 800;
+            font-size: 0.9em;
+        }
+        .app-footer .contact-info {
+            font-size: 0.8em;
+            color: #cbd5e1;
+        }
+        .app-footer .contact-info i {
+            margin: 0 5px;
+            color: var(--primary-light);
+        }
+        .app-footer .version-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%);
+            color: #fff;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 700;
+            margin: 5px 0;
+        }
+
+        @media (max-width: 1200px) {
+            .metrics-grid { grid-template-columns: repeat(3, 1fr); }
+            .import-section { grid-template-columns: 1fr; }
+            .workspace-layout { grid-template-columns: 1fr; }
+            .analytics-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- شاشة تسجيل الدخول -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <div class="login-icon">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <div class="login-title">نظام تحليل نواقص البيانات المتقدم</div>
+            <div class="login-subtitle">يرجى إدخال كلمة المرور للوصول إلى النظام</div>
+            
+            <div class="input-label">كلمة المرور</div>
+            <input type="password" id="loginPasswordInput" class="input-field" placeholder="أدخل كلمة المرور..." onkeypress="if(event.key === 'Enter') AppCore.verifyLogin()">
+            
+            <button class="btn btn-primary" onclick="AppCore.verifyLogin()" style="width:100%;justify-content:center;">
+                <i class="fa-solid fa-right-to-bracket"></i> تسجيل الدخول
+            </button>
+            
+            <div class="alert-banner" id="loginAlert" style="margin-top:15px;"></div>
+            
+            <div class="developer-info">
+                <strong>© 2026 الإصدار الثالث عشر</strong><br>
+                إعداد وتطوير: <strong>د.ص / محمد سعيد محمد الحسني</strong><br>
+                <i class="fa-solid fa-envelope"></i> mhmdwaqas778491995@gmail.com<br>
+                <i class="fa-solid fa-phone"></i> 778491995 - 737460055
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- 1. شريط الأدوات العلوي -->
+        <header class="app-toolbar">
+            <div class="toolbar-group">
+                <button class="btn btn-primary" onclick="AppCore.triggerFileDialog()">
+                    <i class="fa-solid fa-folder-open"></i> استعراض ملف
+                </button>
+                <button class="btn btn-success" onclick="AppCore.exportAllDataToExcel()">
+                    <i class="fa-solid fa-file-excel"></i> تصدير شامل
+                </button>
+                <button class="btn" onclick="AppCore.openModal('settingsModal')">
+                    <i class="fa-solid fa-sliders"></i> إعدادات المحرك
+                </button>
+                <button class="btn btn-warning" onclick="AppCore.openModal('passwordModal')">
+                    <i class="fa-solid fa-key"></i> تغيير كلمة المرور
+                </button>
+            </div>
+            <div class="toolbar-group">
+                <div class="system-status">
+                    <span class="pulse-dot"></span>
+                    <span id="dbStatusText">قاعدة البيانات محملة وجاهزة</span>
+                </div>
+                <button class="btn" onclick="AppCore.openModal('helpModal')">
+                    <i class="fa-solid fa-circle-question"></i> المساعدة
+                </button>
+            </div>
+        </header>
+
+        <!-- 2. العنوان الرئيسي -->
+        <div class="app-header">
+            <h1><i class="fa-solid fa-microchip"></i> نظام تحليل نواقص البيانات الاحترافي</h1>
+            <div class="header-badges">
+                <span class="badge">⚡ أداء فائق بملايين السجلات</span>
+                <span class="badge">💾 SQLite / WebAssembly</span>
+                <span class="badge">📌 الإصدار 13</span>
+            </div>
+        </div>
+
+        <!-- 3. لوحة المؤشرات والإحصائيات -->
+        <div class="metrics-grid" id="metricsGrid" style="display:none;">
+            <div class="metric-card" onclick="AppCore.scrollToTable()">
+                <div class="val" style="color:#fbbf24;" id="statTotalRows">0</div>
+                <div class="lbl">إجمالي السجلات</div>
+            </div>
+            <div class="metric-card">
+                <div class="val" style="color:#34d399;" id="statCompleteRows">0</div>
+                <div class="lbl">البيانات المكتملة</div>
+            </div>
+            <div class="metric-card">
+                <div class="val" style="color:#ef4444;" id="statMissingRows">0</div>
+                <div class="lbl">البيانات الناقصة</div>
+            </div>
+            <div class="metric-card">
+                <div class="val" style="color:#818cf8;" id="statSectorsCount">0</div>
+                <div class="lbl">إجمالي القطاعات</div>
+            </div>
+            <div class="metric-card">
+                <div class="val" style="color:#06b6d4;" id="statCompletionRate">0%</div>
+                <div class="lbl">معدل الإكتمال</div>
+            </div>
+            <div class="metric-card">
+                <div class="val" style="color:#a78bfa;" id="statDbSize">0 MB</div>
+                <div class="lbl">حجم قاعدة البيانات</div>
+            </div>
+        </div>
+
+        <!-- 4. منطقة الإدخال والاستيراد -->
+        <div class="import-section" id="importSection">
+            <div class="import-box">
+                <div class="dropzone" id="dropzoneArea">
+                    <div style="font-size:2.2em;color:var(--primary-light);margin-bottom:6px;"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                    <div style="font-weight:800;font-size:0.95em;">اسحب وأفرج ملف Excel أو انقر للاختيار</div>
+                    <div style="font-size:0.75em;color:var(--text-secondary);margin-top:2px;">يدعم تنسيقات .xlsx, .xls, .csv</div>
+                    
+                    <div class="progress-wrapper" id="uploadProgress">
+                        <div class="progress-fill" id="uploadProgressFill"></div>
+                        <div class="progress-label" id="uploadProgressText">0%</div>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" class="file-input-hidden" accept=".xlsx,.xls,.csv">
+                
+                <div class="meta-tags" id="fileMetaTags">
+                    <span class="meta-badge">📄 <strong id="metaFileName">---</strong></span>
+                    <span class="meta-badge">📋 <strong id="metaRowCount">0</strong> سجل</span>
+                    <span class="meta-badge">📊 <strong id="metaColCount">0</strong> عمود</span>
+                </div>
+            </div>
+
+            <div class="import-box">
+                <div style="font-weight:800;font-size:0.9em;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                    <i class="fa-solid fa-clipboard-paste"></i> أو لصق البيانات المباشرة من Excel:
+                </div>
+                <textarea id="pasteTextArea" class="paste-textarea" placeholder="انسخ الخلايا من جدول Excel (Ctrl+C) والصقها هنا (Ctrl+V)..."></textarea>
+                
+                <div class="progress-wrapper" id="pasteProgress">
+                    <div class="progress-fill" id="pasteProgressFill"></div>
+                    <div class="progress-label" id="pasteProgressText">0%</div>
+                </div>
+                
+                <button class="btn btn-primary" id="loadPasteBtn" style="width:100%;justify-content:center;margin-top:4px;">
+                    <i class="fa-solid fa-bolt"></i> معالجة وتحميل البيانات الملصقة
+                </button>
+            </div>
+        </div>
+
+        <!-- 5. مساحة العمل والتحليل (تظهر بعد تحميل البيانات) -->
+        <div class="workspace-layout" id="workspaceLayout" style="display:none;">
+            <!-- القائمة الجانبية للقطاعات -->
+            <aside class="sidebar-sectors">
+                <h3><i class="fa-solid fa-building-shield"></i> القطاعات الإدارية</h3>
+                <div id="sectorsListContainer"></div>
+            </aside>
+
+            <!-- لوحة التحليل المركزية -->
+            <main class="main-panel">
+                <div class="panel-heading">
+                    <i class="fa-solid fa-chart-pie"></i> 
+                    <span id="activePanelTitle">لوحة التحليل الفوري (كافة القطاعات)</span>
+                    <span style="margin-right:auto;font-size:0.72em;color:var(--text-secondary);font-weight:600;" id="executionTimer"></span>
+                </div>
+                
+                <div style="font-size:0.8em;color:var(--text-secondary);font-weight:700;">اختر العمود المطلوب لتحليله لحظياً:</div>
+                <div class="column-matrix" id="columnMatrixContainer"></div>
+                
+                <!-- شبكة الرسوم البيانية والجداول -->
+                <div class="analytics-container" id="analyticsContainer" style="display:none;">
+                    <div class="charts-box">
+                        <div class="chart-slot"><canvas id="doughnutChart"></canvas></div>
+                        <div class="chart-slot"><canvas id="barGraphChart"></canvas></div>
+                    </div>
+                    <div>
+                        <div class="table-box-wrapper">
+                            <table class="data-table" id="analysisTable">
+                                <thead id="analysisTableHead"></thead>
+                                <tbody id="analysisTableBody"></tbody>
+                            </table>
+                        </div>
+                        <div class="summary-cards-row" id="summaryCardsRow" style="margin-top:10px;"></div>
+                    </div>
+                </div>
+
+                <div class="legend-box" id="referenceLegend" style="display:none;">
+                    <span><span class="dot" style="background:#34d399;"></span> جاهز</span>
+                    <span><span class="dot" style="background:#fbbf24;"></span> بصمة فقط</span>
+                    <span><span class="dot" style="background:#f97316;"></span> إدخال وبصمة</span>
+                    <span><span class="dot" style="background:#ef4444;"></span> لم يحضر (فارغ)</span>
+                </div>
+
+                <div class="alert-banner" id="systemAlert"></div>
+            </main>
+        </div>
+
+        <!-- نافذة الإعدادات المنبثقة -->
+        <div class="modal-overlay" id="settingsModal">
+            <div class="modal-card">
+                <button class="modal-close" onclick="AppCore.closeModal('settingsModal')">✕</button>
+                <h3 style="margin-bottom:14px;font-size:1.1em;font-weight:800;"><i class="fa-solid fa-sliders"></i> إعدادات محرك المعالجة</h3>
+                
+                <label style="display:block;margin-bottom:6px;font-size:0.82em;font-weight:700;">حجم دفعة المعالجة (Batch Size):</label>
+                <select id="settingBatchSize" style="width:100%;padding:8px 12px;background:#1e293b;color:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85em;margin-bottom:14px;">
+                    <option value="10000">10,000 سجل</option>
+                    <option value="50000" selected>50,000 سجل (موصى به للأداء الأمثل)</option>
+                    <option value="100000">100,000 سجل</option>
+                </select>
+
+                <button class="btn btn-primary" onclick="AppCore.saveSettings()" style="width:100%;justify-content:center;">حفظ الإعدادات</button>
+            </div>
+        </div>
+
+        <!-- نافذة تغيير كلمة المرور -->
+        <div class="modal-overlay" id="passwordModal">
+            <div class="modal-card">
+                <button class="modal-close" onclick="AppCore.closeModal('passwordModal')">✕</button>
+                <h3 style="margin-bottom:14px;font-size:1.1em;font-weight:800;"><i class="fa-solid fa-key"></i> تغيير كلمة المرور</h3>
+                
+                <label class="input-label">كلمة المرور الحالية</label>
+                <input type="password" id="currentPasswordInput" class="input-field" placeholder="أدخل كلمة المرور الحالية">
+                
+                <label class="input-label">كلمة المرور الجديدة</label>
+                <input type="password" id="newPasswordInput" class="input-field" placeholder="أدخل كلمة المرور الجديدة">
+                
+                <label class="input-label">تأكيد كلمة المرور الجديدة</label>
+                <input type="password" id="confirmPasswordInput" class="input-field" placeholder="أعد إدخال كلمة المرور الجديدة">
+                
+                <button class="btn btn-primary" onclick="AppCore.changePassword()" style="width:100%;justify-content:center;margin-top:10px;">
+                    <i class="fa-solid fa-save"></i> حفظ كلمة المرور
+                </button>
+                
+                <div class="alert-banner" id="passwordAlert" style="margin-top:10px;"></div>
+            </div>
+        </div>
+
+        <!-- نافذة المساعدة المنبثقة -->
+        <div class="modal-overlay" id="helpModal">
+            <div class="modal-card">
+                <button class="modal-close" onclick="AppCore.closeModal('helpModal')">✕</button>
+                <h3 style="margin-bottom:12px;font-size:1.1em;font-weight:800;"><i class="fa-solid fa-circle-question"></i> دليل استخدام النظام</h3>
+                <p style="font-size:0.82em;line-height:1.7;color:#cbd5e1;">
+                    يقوم هذا النظام بمعالجة ملايين السجلات محلياً في متصفحك عبر تقنية <strong>WebAssembly SQLite</strong>.<br><br>
+                    1. قم برفع ملف Excel أو الصق البيانات مباشرة.<br>
+                    2. اختر القطاع الإداري من القائمة الجانبية أو استعرض كافة القطاعات.<br>
+                    3. انقر على أي عمود لتحليل نواقصه فوراً مع رسوم بيانية وتصدير تقارير مخصصة.
+                </p>
+            </div>
+        </div>
+
+        <!-- الفوتر مع معلومات المطور -->
+        <footer class="app-footer">
+            <div class="version-badge">الإصدار الثالث عشر - 2026</div><br>
+            <div class="developer-credit">
+                <i class="fa-solid fa-copyright"></i> جميع الحقوق محفوظة - إعداد وتطوير
+            </div>
+            <div class="developer-credit">
+                د.ص / محمد سعيد محمد الحسني
+            </div>
+            <div class="contact-info">
+                <i class="fa-solid fa-envelope"></i> mhmdwaqas778491995@gmail.com
+                <span style="margin:0 10px;">|</span>
+                <i class="fa-solid fa-phone"></i> 778491995 - 737460055
+            </div>
+            <div style="margin-top:5px;font-size:0.75em;color:#64748b;">
+                نظام تحليل نواقص البيانات المتقدم - جميع الحقوق محفوظة © 2026
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        /**
+         * نظام تحليل البيانات المتقدم - الإصدار الثالث عشر
+         * إعداد وتطوير: د.ص / محمد سعيد محمد الحسني
+         */
+        
+        // وحدة منطق العمل المنفصلة (Business Logic Module)
+        const BusinessLogic = (function() {
+            function analyzeReferenceValue(value) {
+                const val = String(value || '').trim();
+                
+                if (!val) {
+                    return { status: 'refNoForm', isComplete: false };
+                }
+                
+                const lowerVal = val.toLowerCase();
+                const hasFingerprint = lowerVal.includes('بصمة');
+                const hasEntry = lowerVal.includes('ادخال');
+                
+                if (hasFingerprint && hasEntry) {
+                    return { status: 'refNoEntryFinger', isComplete: false };
+                }
+                
+                if (hasFingerprint) {
+                    return { status: 'refNoFinger', isComplete: false };
+                }
+                
+                return { status: 'refReady', isComplete: true };
+            }
+            
+            function analyzeRegularValue(value) {
+                const val = String(value || '').trim();
+                return { isComplete: val !== '' };
+            }
+            
+            return {
+                analyzeReferenceValue,
+                analyzeRegularValue
+            };
+        })();
+        
+        // وحدة الأمان (Security Module)
+        const SecurityUtils = (function() {
+            function sanitizeText(text) {
+                if (text === null || text === undefined) return '';
+                
+                const div = document.createElement('div');
+                div.textContent = String(text);
+                return div.innerHTML;
+            }
+            
+            function sanitizeForHTML(text) {
+                return sanitizeText(text)
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+            
+            return {
+                sanitizeText,
+                sanitizeForHTML
+            };
+        })();
+
+        const AppCore = (function() {
+            let sqlDb = null;
+            let tableHeaders = [];
+            let rawDataRows = [];
+            let sectorsRegistry = [];
+            let sectorColumnIdx = -1;
+            let activeColumnIndex = null;
+            let activeAnalysisResult = null;
+            let doughnutChartInstance = null;
+            let barChartInstance = null;
+            let currentSelectedSector = 'ALL';
+            let configuredBatchSize = 50000;
+            let systemPassword = localStorage.getItem('systemPassword') || '12345';
+            let isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+
+            // DOM Elements Cache
+            const dom = {};
+
+            function initCache() {
+                const ids = [
+                    'fileInput', 'dropzoneArea', 'uploadProgress', 'uploadProgressFill', 'uploadProgressText',
+                    'fileMetaTags', 'metaFileName', 'metaRowCount', 'metaColCount', 'pasteTextArea',
+                    'loadPasteBtn', 'pasteProgress', 'pasteProgressFill', 'pasteProgressText',
+                    'workspaceLayout', 'importSection', 'metricsGrid', 'sectorsListContainer',
+                    'columnMatrixContainer', 'analyticsContainer', 'analysisTableHead', 'analysisTableBody',
+                    'summaryCardsRow', 'referenceLegend', 'systemAlert', 'activePanelTitle', 'executionTimer',
+                    'statTotalRows', 'statCompleteRows', 'statMissingRows', 'statSectorsCount',
+                    'statCompletionRate', 'statDbSize', 'dbStatusText', 'settingBatchSize',
+                    'loginScreen', 'loginPasswordInput', 'loginAlert',
+                    'currentPasswordInput', 'newPasswordInput', 'confirmPasswordInput', 'passwordAlert'
+                ];
+                ids.forEach(id => dom[id] = document.getElementById(id));
+            }
+
+            function checkLoginStatus() {
+                if (isLoggedIn) {
+                    dom.loginScreen.style.display = 'none';
+                } else {
+                    dom.loginScreen.style.display = 'flex';
+                }
+            }
+
+            function verifyLogin() {
+                const enteredPassword = dom.loginPasswordInput.value;
+                
+                if (enteredPassword === systemPassword) {
+                    isLoggedIn = true;
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    dom.loginScreen.style.display = 'none';
+                    showAlert('success', 'تم تسجيل الدخول بنجاح. مرحباً بك في النظام.');
+                } else {
+                    dom.loginAlert.className = 'alert-banner error';
+                    dom.loginAlert.textContent = 'كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.';
+                    dom.loginAlert.style.display = 'block';
+                    dom.loginPasswordInput.value = '';
+                    dom.loginPasswordInput.focus();
+                    
+                    setTimeout(() => {
+                        dom.loginAlert.style.display = 'none';
+                    }, 3000);
+                }
+            }
+
+            function changePassword() {
+                const currentPassword = dom.currentPasswordInput.value;
+                const newPassword = dom.newPasswordInput.value;
+                const confirmPassword = dom.confirmPasswordInput.value;
+                
+                if (currentPassword !== systemPassword) {
+                    showPasswordAlert('error', 'كلمة المرور الحالية غير صحيحة.');
+                    return;
+                }
+                
+                if (!newPassword || newPassword.length < 4) {
+                    showPasswordAlert('error', 'كلمة المرور الجديدة يجب أن تكون 4 أحرف على الأقل.');
+                    return;
+                }
+                
+                if (newPassword !== confirmPassword) {
+                    showPasswordAlert('error', 'كلمتا المرور غير متطابقتين.');
+                    return;
+                }
+                
+                systemPassword = newPassword;
+                localStorage.setItem('systemPassword', newPassword);
+                
+                dom.currentPasswordInput.value = '';
+                dom.newPasswordInput.value = '';
+                dom.confirmPasswordInput.value = '';
+                
+                showPasswordAlert('success', 'تم تغيير كلمة المرور بنجاح.');
+                
+                setTimeout(() => {
+                    closeModal('passwordModal');
+                    dom.passwordAlert.style.display = 'none';
+                }, 2000);
+            }
+
+            function showPasswordAlert(type, message) {
+                dom.passwordAlert.className = `alert-banner ${type}`;
+                dom.passwordAlert.textContent = message;
+                dom.passwordAlert.style.display = 'block';
+                
+                setTimeout(() => {
+                    dom.passwordAlert.style.display = 'none';
+                }, 4000);
+            }
+
+            async function initializeDatabase() {
+                try {
+                    const SQL = await initSqlJs({ locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/${file}` });
+                    sqlDb = new SQL.Database();
+                    sqlDb.run(`CREATE TABLE IF NOT EXISTS records_store (id INTEGER PRIMARY KEY AUTOINCREMENT, row_json TEXT, sector_name TEXT);`);
+                    updateDatabaseMetrics();
+                } catch (err) {
+                    console.error("SQLite Initialization Error:", err);
+                    showAlert('error', 'فشل تحميل محرك قاعدة البيانات المحلية.');
+                }
+            }
+
+            function updateDatabaseMetrics() {
+                if (sqlDb) {
+                    const sizeBytes = sqlDb.export().length;
+                    const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(2) + ' MB';
+                    dom.statDbSize.textContent = sizeMB;
+                }
+            }
+
+            function showAlert(type, message) {
+                dom.systemAlert.className = `alert-banner ${type}`;
+                dom.systemAlert.textContent = message;
+                dom.systemAlert.style.display = 'block';
+                setTimeout(() => { dom.systemAlert.style.display = 'none'; }, 5000);
+            }
+
+            function cleanText(str) {
+                return String(str || '').trim().replace(/\s+/g, ' ');
+            }
+
+            function processInBatches(items, batchSize, processor, onProgress, onComplete) {
+                let index = 0;
+                const total = items.length;
+                
+                function processNextBatch() {
+                    const endIndex = Math.min(index + batchSize, total);
+                    
+                    for (let i = index; i < endIndex; i++) {
+                        processor(items[i], i);
+                    }
+                    
+                    index = endIndex;
+                    const percent = Math.max(0, Math.min(100, Math.round((index / total) * 100)));
+                    
+                    if (onProgress) {
+                        onProgress(percent);
+                    }
+                    
+                    if (index < total) {
+                        setTimeout(processNextBatch, 5);
+                    } else {
+                        if (onComplete) {
+                            onComplete();
+                        }
+                    }
+                }
+                
+                setTimeout(processNextBatch, 5);
+            }
+
+            function triggerFileDialog() { dom.fileInput.click(); }
+            function openModal(id) { document.getElementById(id).classList.add('active'); }
+            function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+            function scrollToTable() { dom.analysisTable.scrollIntoView({ behavior: 'smooth' }); }
+
+            function saveSettings() {
+                configuredBatchSize = parseInt(dom.settingBatchSize.value);
+                closeModal('settingsModal');
+                showAlert('success', 'تم حفظ إعدادات المحرك بنجاح.');
+            }
+
+            function setupEventListeners() {
+                dom.dropzoneArea.addEventListener('click', triggerFileDialog);
+                dom.fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length) handleFileUpload(e.target.files[0]);
+                });
+
+                dom.loadPasteBtn.addEventListener('click', handlePasteUpload);
+            }
+
+            function handleFileUpload(file) {
+                const reader = new FileReader();
+                dom.uploadProgress.classList.add('active');
+                dom.uploadProgressFill.style.width = '10%';
+                dom.uploadProgressText.textContent = '10%';
+
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        dom.uploadProgressFill.style.width = '30%';
+                        dom.uploadProgressText.textContent = '30%';
+
+                        setTimeout(() => {
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const sheetRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '', raw: false });
+                            
+                            tableHeaders = sheetRows[0].map(h => cleanText(String(h)));
+                            
+                            const validRows = [];
+                            processInBatches(
+                                sheetRows.slice(1),
+                                configuredBatchSize,
+                                (row) => {
+                                    if (row.some(cell => cell !== '')) {
+                                        validRows.push(row);
+                                    }
+                                },
+                                (percent) => {
+                                    const adjustedPercent = Math.max(30, Math.min(100, percent));
+                                    dom.uploadProgressFill.style.width = adjustedPercent + '%';
+                                    dom.uploadProgressText.textContent = adjustedPercent + '%';
+                                },
+                                () => {
+                                    rawDataRows = validRows;
+                                    setTimeout(() => dom.uploadProgress.classList.remove('active'), 600);
+                                    finalizeInitialization(file.name);
+                                }
+                            );
+                        }, 50);
+                    } catch (err) {
+                        showAlert('error', 'حدث خطأ أثناء قراءة ملف الـ Excel.');
+                        dom.uploadProgress.classList.remove('active');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function handlePasteUpload() {
+                const text = dom.pasteTextArea.value.trim();
+                if (!text) return showAlert('error', 'يرجى لصق البيانات في الحقل المخصص أولاً.');
+
+                dom.pasteProgress.classList.add('active');
+                dom.pasteProgressFill.style.width = '15%';
+                dom.pasteProgressText.textContent = '15%';
+
+                setTimeout(() => {
+                    const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+                    tableHeaders = lines[0].split('\t').map(h => cleanText(h));
+                    
+                    const parsedRows = [];
+                    
+                    processInBatches(
+                        lines.slice(1),
+                        Math.min(15000, configuredBatchSize),
+                        (line) => {
+                            parsedRows.push(line.split('\t'));
+                        },
+                        (percent) => {
+                            const adjustedPercent = Math.max(15, Math.min(100, percent));
+                            dom.pasteProgressFill.style.width = adjustedPercent + '%';
+                            dom.pasteProgressText.textContent = adjustedPercent + '%';
+                        },
+                        () => {
+                            rawDataRows = parsedRows;
+                            setTimeout(() => dom.pasteProgress.classList.remove('active'), 600);
+                            finalizeInitialization('بيانات ملصقة مباشرة');
+                        }
+                    );
+                }, 50);
+            }
+
+            function finalizeInitialization(sourceName) {
+                sectorColumnIdx = tableHeaders.findIndex(h => ['قطاع', 'القطاع', 'sector'].some(k => h.toLowerCase().includes(k)));
+                if (sectorColumnIdx === -1) sectorColumnIdx = 0;
+
+                const sectorMap = new Map();
+                
+                try {
+                    sqlDb.run("DROP TABLE IF EXISTS temp_records;");
+                    sqlDb.run("CREATE TABLE temp_records (id INTEGER PRIMARY KEY AUTOINCREMENT, sector TEXT);");
+                    
+                    const stmt = sqlDb.prepare("INSERT INTO temp_records (sector) VALUES (?)");
+                    
+                    const batchSize = 10000;
+                    for (let i = 0; i < rawDataRows.length; i += batchSize) {
+                        const end = Math.min(i + batchSize, rawDataRows.length);
+                        sqlDb.run("BEGIN TRANSACTION;");
+                        for (let j = i; j < end; j++) {
+                            const sec = cleanText(String(rawDataRows[j][sectorColumnIdx] || 'غير محدد'));
+                            if (sec) {
+                                stmt.run([sec]);
+                            }
+                        }
+                        sqlDb.run("COMMIT;");
+                    }
+                    stmt.free();
+                    
+                    const result = sqlDb.exec("SELECT sector, COUNT(*) as count FROM temp_records GROUP BY sector ORDER BY count DESC;");
+                    
+                    if (result.length > 0) {
+                        const rows = result[0].values;
+                        rows.forEach(row => {
+                            const sectorName = row[0];
+                            const count = row[1];
+                            sectorMap.set(sectorName, count);
+                        });
+                    }
+                    
+                    sqlDb.run("DROP TABLE IF EXISTS temp_records;");
+                } catch (sqlError) {
+                    console.error("SQL Error:", sqlError);
+                    rawDataRows.forEach(row => {
+                        const sec = cleanText(String(row[sectorColumnIdx] || 'غير محدد'));
+                        if (sec) sectorMap.set(sec, (sectorMap.get(sec) || 0) + 1);
+                    });
+                }
+
+                sectorsRegistry = [...sectorMap.entries()].sort((a, b) => b[1] - a[1]);
+
+                dom.metaFileName.textContent = sourceName;
+                dom.metaRowCount.textContent = rawDataRows.length.toLocaleString();
+                dom.metaColCount.textContent = tableHeaders.length;
+                dom.fileMetaTags.classList.add('active');
+
+                dom.statTotalRows.textContent = rawDataRows.length.toLocaleString();
+                dom.statSectorsCount.textContent = sectorsRegistry.length;
+
+                dom.metricsGrid.style.display = 'grid';
+                dom.workspaceLayout.style.display = 'grid';
+
+                currentSelectedSector = 'ALL';
+                renderSectorsSidebar();
+                renderColumnMatrix();
+                updateDatabaseMetrics();
+                showAlert('success', `تم معالجة وتحميل ${rawDataRows.length.toLocaleString()} سجل بنجاح.`);
+            }
+
+            function renderSectorsSidebar() {
+                const sanitizedSectors = sectorsRegistry.map(([name, count]) => [
+                    SecurityUtils.sanitizeForHTML(name),
+                    count
+                ]);
+                
+                const allSectorName = SecurityUtils.sanitizeForHTML('كافة القطاعات');
+                
+                let html = `<button class="sector-btn ${currentSelectedSector === 'ALL' ? 'active' : ''}" onclick="AppCore.filterBySector('ALL')">
+                    <span>📦 ${allSectorName}</span> <span class="count">${rawDataRows.length.toLocaleString()}</span>
+                </button>`;
+
+                html += sanitizedSectors.map(([name, count]) => `
+                    <button class="sector-btn ${currentSelectedSector === name ? 'active' : ''}" onclick="AppCore.filterBySector('${name}')">
+                        <span>${name}</span> <span class="count">${count.toLocaleString()}</span>
+                    </button>
+                `).join('');
+
+                dom.sectorsListContainer.innerHTML = html;
+            }
+
+            function filterBySector(secName) {
+                currentSelectedSector = secName;
+                renderSectorsSidebar();
+                const sanitizedSector = SecurityUtils.sanitizeText(secName);
+                dom.activePanelTitle.textContent = secName === 'ALL' ? 'لوحة التحليل الفوري (كافة القطاعات)' : `لوحة التحليل الفوري (${sanitizedSector})`;
+                if (activeColumnIndex !== null) {
+                    analyzeColumn(activeColumnIndex, document.querySelectorAll('.col-chip')[activeColumnIndex], true);
+                }
+            }
+
+            function renderColumnMatrix() {
+                dom.columnMatrixContainer.innerHTML = tableHeaders.map((h, i) => {
+                    const sanitizedHeader = SecurityUtils.sanitizeForHTML(h || 'عمود ' + (i + 1));
+                    const isRef = h.toLowerCase().includes('مرجع');
+                    return `<button class="col-chip ${isRef ? 'reference' : ''}" onclick="AppCore.analyzeColumn(${i}, this)">${sanitizedHeader}</button>`;
+                }).join('');
+            }
+
+            function analyzeColumn(colIdx, chipEl, keepActive = false) {
+                activeColumnIndex = colIdx;
+                if (!keepActive) {
+                    document.querySelectorAll('.col-chip').forEach(c => c.classList.remove('active'));
+                    if (chipEl) chipEl.classList.add('active');
+                }
+
+                const isRefCol = tableHeaders[colIdx].toLowerCase().includes('مرجع');
+                dom.referenceLegend.style.display = isRefCol ? 'flex' : 'none';
+
+                const startTime = performance.now();
+                setTimeout(() => {
+                    const analysisData = {};
+                    const targetSectors = currentSelectedSector === 'ALL' ? sectorsRegistry : sectorsRegistry.filter(([s]) => s === currentSelectedSector);
+
+                    targetSectors.forEach(([s, total]) => {
+                        analysisData[s] = { total, complete: 0, missing: 0, refReady: 0, refNoFinger: 0, refNoEntryFinger: 0, refNoForm: 0, completeRows: [], missingRows: [], refReadyRows: [] };
+                    });
+
+                    rawDataRows.forEach(row => {
+                        const sec = cleanText(String(row[sectorColumnIdx] || 'غير محدد'));
+                        if (!analysisData[sec]) return;
+                        const val = String(row[colIdx] || '').trim();
+
+                        if (isRefCol) {
+                            const result = BusinessLogic.analyzeReferenceValue(val);
+                            
+                            if (result.status === 'refReady') {
+                                analysisData[sec].refReady++;
+                                analysisData[sec].complete++;
+                                analysisData[sec].refReadyRows.push(row);
+                            } else if (result.status === 'refNoFinger') {
+                                analysisData[sec].refNoFinger++;
+                                analysisData[sec].missing++;
+                                analysisData[sec].missingRows.push(row);
+                            } else if (result.status === 'refNoEntryFinger') {
+                                analysisData[sec].refNoEntryFinger++;
+                                analysisData[sec].missing++;
+                                analysisData[sec].missingRows.push(row);
+                            } else if (result.status === 'refNoForm') {
+                                analysisData[sec].refNoForm++;
+                                analysisData[sec].missing++;
+                                analysisData[sec].missingRows.push(row);
+                            }
+                        } else {
+                            const result = BusinessLogic.analyzeRegularValue(val);
+                            
+                            if (result.isComplete) {
+                                analysisData[sec].complete++;
+                                analysisData[sec].completeRows.push(row);
+                            } else {
+                                analysisData[sec].missing++;
+                                analysisData[sec].missingRows.push(row);
+                            }
+                        }
+                    });
+
+                    activeAnalysisResult = analysisData;
+                    renderAnalysisTable(isRefCol);
+                    renderSummaryCards(isRefCol);
+                    renderCharts(isRefCol);
+                    updateGlobalDashboard(isRefCol);
+
+                    const duration = ((performance.now() - startTime) / 1000).toFixed(2);
+                    dom.executionTimer.textContent = `⏱️ زمن التحليل: ${duration} ثانية`;
+                }, 10);
+            }
+
+            function renderAnalysisTable(isRef) {
+                if (!activeAnalysisResult) return;
+                const sectors = Object.keys(activeAnalysisResult);
+
+                if (isRef) {
+                    dom.analysisTableHead.innerHTML = `<tr><th>القطاع الإداري</th><th>إجمالي السجلات</th><th>جاهز</th><th>بصمة فقط</th><th>إدخال وبصمة</th><th>لم يحضر</th><th>تصدير البيانات</th></tr>`;
+                    dom.analysisTableBody.innerHTML = sectors.map(sec => {
+                        const d = activeAnalysisResult[sec];
+                        const sanitizedSector = SecurityUtils.sanitizeForHTML(sec);
+                        const safeId = sanitizedSector.replace(/[^a-zA-Z0-9]/g, '_');
+                        return `<tr>
+                            <td><strong>${sanitizedSector}</strong></td>
+                            <td style="color:#fbbf24;font-weight:700;">${d.total}</td>
+                            <td style="color:#34d399;font-weight:700;">${d.refReady}</td>
+                            <td>${d.refNoFinger}</td>
+                            <td>${d.refNoEntryFinger}</td>
+                            <td style="color:#f87171;font-weight:700;">${d.refNoForm}</td>
+                            <td>
+                                <select class="export-select" id="exportSelect_${safeId}">
+                                    <option value="complete">المكتمل</option>
+                                    <option value="missing">الناقص</option>
+                                    <option value="all">الكل</option>
+                                </select>
+                                <button class="export-btn-sm" onclick="AppCore.exportSectorRows('${sanitizedSector}', document.getElementById('exportSelect_${safeId}').value)">
+                                    <i class="fa-solid fa-download"></i> تنزيل
+                                </button>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                } else {
+                    dom.analysisTableHead.innerHTML = `<tr><th>القطاع الإداري</th><th>إجمالي السجلات</th><th>المكتملة</th><th>الناقصة</th><th>تصدير البيانات</th></tr>`;
+                    dom.analysisTableBody.innerHTML = sectors.map(sec => {
+                        const d = activeAnalysisResult[sec];
+                        const sanitizedSector = SecurityUtils.sanitizeForHTML(sec);
+                        const safeId = sanitizedSector.replace(/[^a-zA-Z0-9]/g, '_');
+                        return `<tr>
+                            <td><strong>${sanitizedSector}</strong></td>
+                            <td style="color:#fbbf24;font-weight:700;">${d.total}</td>
+                            <td style="color:#34d399;font-weight:700;">${d.complete}</td>
+                            <td style="color:#f87171;font-weight:700;">${d.missing}</td>
+                            <td>
+                                <select class="export-select" id="exportSelect_${safeId}">
+                                    <option value="complete">المكتمل</option>
+                                    <option value="missing">الناقص</option>
+                                    <option value="all">الكل</option>
+                                </select>
+                                <button class="export-btn-sm" onclick="AppCore.exportSectorRows('${sanitizedSector}', document.getElementById('exportSelect_${safeId}').value)">
+                                    <i class="fa-solid fa-download"></i> تنزيل
+                                </button>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            }
+
+            function renderSummaryCards(isRef) {
+                let total = 0, complete = 0, missing = 0;
+                Object.values(activeAnalysisResult).forEach(d => { total += d.total; complete += d.complete; missing += d.missing; });
+
+                dom.summaryCardsRow.innerHTML = `
+                    <div class="summary-card-mini"><div class="num" style="color:#fbbf24;">${total.toLocaleString()}</div><div class="txt">الإجمالي</div></div>
+                    <div class="summary-card-mini"><div class="num" style="color:#34d399;">${complete.toLocaleString()}</div><div class="txt">مكتمل</div></div>
+                    <div class="summary-card-mini"><div class="num" style="color:#ef4444;">${missing.toLocaleString()}</div><div class="txt">ناقص</div></div>
+                `;
+            }
+
+            function updateGlobalDashboard(isRef) {
+                let totalComp = 0, totalTarget = 0;
+                Object.values(activeAnalysisResult).forEach(d => {
+                    totalComp += d.complete;
+                    totalTarget += d.total;
+                });
+
+                dom.statCompleteRows.textContent = totalComp.toLocaleString();
+                dom.statMissingRows.textContent = (totalTarget - totalComp).toLocaleString();
+                const rate = totalTarget > 0 ? ((totalComp / totalTarget) * 100).toFixed(1) : 0;
+                dom.statCompletionRate.textContent = rate + '%';
+            }
+
+            function renderCharts(isRef) {
+                dom.analyticsContainer.style.display = 'grid';
+                let totalComplete = 0, totalMissing = 0;
+                Object.values(activeAnalysisResult).forEach(d => { totalComplete += d.complete; totalMissing += d.missing; });
+
+                if (doughnutChartInstance) doughnutChartInstance.destroy();
+                doughnutChartInstance = new Chart(document.getElementById('doughnutChart').getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['مكتمل', 'ناقص'],
+                        datasets: [{ data: [totalComplete, totalMissing], backgroundColor: ['#34d399', '#ef4444'], borderWidth: 0 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { color: '#fff', font: { family: 'Cairo', size: 11 }, boxWidth: 12 } } }
+                    }
+                });
+
+                if (barChartInstance) barChartInstance.destroy();
+                const sectors = Object.keys(activeAnalysisResult);
+                const sanitizedSectors = sectors.map(s => SecurityUtils.sanitizeText(s));
+                
+                barChartInstance = new Chart(document.getElementById('barGraphChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: sanitizedSectors,
+                        datasets: [
+                            { label: 'مكتمل', data: sectors.map(s => activeAnalysisResult[s].complete), backgroundColor: '#34d399' },
+                            { label: 'ناقص', data: sectors.map(s => activeAnalysisResult[s].missing), backgroundColor: '#ef4444' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            y: { ticks: { color: '#cbd5e1', font: { family: 'Cairo', size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                            x: { ticks: { color: '#cbd5e1', font: { family: 'Cairo', size: 10 } }, grid: { display: false } }
+                        },
+                        plugins: { legend: { labels: { color: '#fff', font: { family: 'Cairo', size: 11 }, boxWidth: 12 } } }
+                    }
+                });
+            }
+
+            function exportSectorRows(secName, type) {
+                if (!activeAnalysisResult || !activeAnalysisResult[secName]) {
+                    showAlert('error', 'لا توجد بيانات للتصدير.');
+                    return;
+                }
+                
+                const d = activeAnalysisResult[secName];
+                let rowsToExport = [];
+                let fileNamePrefix = '';
+                
+                if (type === 'complete') {
+                    rowsToExport = d.completeRows;
+                    fileNamePrefix = 'المكتمل';
+                } else if (type === 'missing') {
+                    rowsToExport = d.missingRows;
+                    fileNamePrefix = 'الناقص';
+                } else {
+                    rowsToExport = [...d.completeRows, ...d.missingRows];
+                    fileNamePrefix = 'الكل';
+                }
+                
+                if (rowsToExport.length === 0) {
+                    showAlert('error', `لا توجد بيانات ${type === 'complete' ? 'مكتملة' : type === 'missing' ? 'ناقصة' : ''} للتصدير في هذا القطاع.`);
+                    return;
+                }
+                
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([tableHeaders, ...rowsToExport]), 'التقرير');
+                XLSX.writeFile(wb, `${fileNamePrefix}_من_قطاع_${secName}_${new Date().toISOString().slice(0,10)}.xlsx`);
+                
+                showAlert('success', `تم تصدير ${rowsToExport.length.toLocaleString()} سجل (${fileNamePrefix}) من قطاع ${secName} بنجاح.`);
+            }
+
+            function exportAllDataToExcel() {
+                if (!rawDataRows.length) return showAlert('error', 'لا توجد بيانات للتصدير حالياً.');
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([tableHeaders, ...rawDataRows]), 'كافة البيانات');
+                XLSX.writeFile(wb, `جميع_البيانات_المحللة_${new Date().toISOString().slice(0,10)}.xlsx`);
+            }
+
+            // System Initialization
+            window.addEventListener('DOMContentLoaded', () => {
+                initCache();
+                checkLoginStatus();
+                initializeDatabase();
+                setupEventListeners();
+            });
+
+            return {
+                triggerFileDialog, openModal, closeModal, scrollToTable, saveSettings,
+                filterBySector, analyzeColumn, exportSectorRows, exportAllDataToExcel,
+                verifyLogin, changePassword
+            };
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+{
+  "name": "nawaqis-analyzer",
+  "version": "1.0.0",
+  "description": "نظام تحليل نواقص البيانات المتقدم - نسخة سطح المكتب",
+  "main": "main.js",
+  "author": "Your Company",
+  "license": "ISC",
+  "scripts": {
+    "start": "electron .",
+    "build-win": "electron-builder --win",
+    "build-mac": "electron-builder --mac",
+    "build-linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.yourcompany.nawaqisanalyzer",
+    "productName": "نظام تحليل النواقص",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "main.js",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": ["dmg"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
+  }
+}
