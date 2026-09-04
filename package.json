@@ -18,6 +18,7 @@
   "build": {
     "appId": "com.yourcompany.nawaqisanalyzer",
     "productName": "نظام تحليل النواقص",
+    "publish": null,
     "directories": {
       "output": "dist"
     },
@@ -35,6 +36,19 @@
       ]
     },
     "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": ["dmg"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
+  }
+}    "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
